@@ -39,34 +39,40 @@ extern const char *SDS_NOINIT;
 #include <sys/types.h>
 #include <stdarg.h>
 #include <stdint.h>
+#include "arena.h"
 
 typedef char *sds;
 
 /* Note: sdshdr5 is never used, we just access the flags byte directly.
  * However is here to document the layout of type 5 SDS strings. */
 struct __attribute__ ((__packed__)) sdshdr5 {
+    Arena* arena;
     unsigned char flags; /* 3 lsb of type, and 5 msb of string length */
     char buf[];
 };
 struct __attribute__ ((__packed__)) sdshdr8 {
+    Arena* arena;
     uint8_t len; /* used */
     uint8_t alloc; /* excluding the header and null terminator */
     unsigned char flags; /* 3 lsb of type, 5 unused bits */
     char buf[];
 };
 struct __attribute__ ((__packed__)) sdshdr16 {
+    Arena* arena;
     uint16_t len; /* used */
     uint16_t alloc; /* excluding the header and null terminator */
     unsigned char flags; /* 3 lsb of type, 5 unused bits */
     char buf[];
 };
 struct __attribute__ ((__packed__)) sdshdr32 {
+    Arena* arena;
     uint32_t len; /* used */
     uint32_t alloc; /* excluding the header and null terminator */
     unsigned char flags; /* 3 lsb of type, 5 unused bits */
     char buf[];
 };
 struct __attribute__ ((__packed__)) sdshdr64 {
+    Arena* arena;
     uint64_t len; /* used */
     uint64_t alloc; /* excluding the header and null terminator */
     unsigned char flags; /* 3 lsb of type, 5 unused bits */
@@ -83,6 +89,44 @@ struct __attribute__ ((__packed__)) sdshdr64 {
 #define SDS_HDR_VAR(T,s) struct sdshdr##T *sh = (void*)((s)-(sizeof(struct sdshdr##T)));
 #define SDS_HDR(T,s) ((struct sdshdr##T *)((s)-(sizeof(struct sdshdr##T))))
 #define SDS_TYPE_5_LEN(f) ((f)>>SDS_TYPE_BITS)
+
+static inline Arena* sdsarena(const sds s) {
+    unsigned char flags = s[-1];
+    switch(flags&SDS_TYPE_MASK) {
+        case SDS_TYPE_5:
+            return SDS_HDR(5,s)->arena;
+        case SDS_TYPE_8:
+            return SDS_HDR(8,s)->arena;
+        case SDS_TYPE_16:
+            return SDS_HDR(16,s)->arena;
+        case SDS_TYPE_32:
+            return SDS_HDR(32,s)->arena;
+        case SDS_TYPE_64:
+            return SDS_HDR(64,s)->arena;
+    }
+    return 0;
+}
+
+static inline void sdssetarena(const sds s, Arena* arena) {
+    unsigned char flags = s[-1];
+    switch(flags&SDS_TYPE_MASK) {
+        case SDS_TYPE_5:
+            SDS_HDR(5,s)->arena = arena;
+            break;
+        case SDS_TYPE_8:
+            SDS_HDR(8,s)->arena = arena;
+            break;
+        case SDS_TYPE_16:
+            SDS_HDR(16,s)->arena = arena;
+            break;
+        case SDS_TYPE_32:
+            SDS_HDR(32,s)->arena = arena;
+            break;
+        case SDS_TYPE_64:
+            SDS_HDR(64,s)->arena = arena;
+            break;
+    }
+}
 
 static inline size_t sdslen(const sds s) {
     unsigned char flags = s[-1];
@@ -215,11 +259,11 @@ static inline void sdssetalloc(sds s, size_t newlen) {
     }
 }
 
-sds sdsnewlen(const void *init, size_t initlen);
-sds sdsnew(const char *init);
-sds sdsempty(void);
+sds sdsnewlen(const void *init, size_t initlen, Arena* arena);
+sds sdsnew(const char *init, Arena* arena);
+sds sdsempty(Arena* arena);
 sds sdsdup(const sds s);
-void sdsfree(sds s);
+/* void sdsfree(sds s); */
 sds sdsgrowzero(sds s, size_t len);
 sds sdscatlen(sds s, const void *t, size_t len);
 sds sdscat(sds s, const char *t);
@@ -241,21 +285,21 @@ void sdsrange(sds s, ssize_t start, ssize_t end);
 void sdsupdatelen(sds s);
 void sdsclear(sds s);
 int sdscmp(const sds s1, const sds s2);
-sds *sdssplitlen(const char *s, ssize_t len, const char *sep, int seplen, int *count);
+sds *sdssplitlen(const char *s, ssize_t len, const char *sep, int seplen, int *count, Arena* arena);
 void sdsfreesplitres(sds *tokens, int count);
 void sdstolower(sds s);
 void sdstoupper(sds s);
-sds sdsfromlonglong(long long value);
+sds sdsfromlonglong(long long value, Arena* arena);
 sds sdscatrepr(sds s, const char *p, size_t len);
-sds *sdssplitargs(const char *line, int *argc);
+sds *sdssplitargs(const char *line, int *argc, Arena* arena);
 sds sdsmapchars(sds s, const char *from, const char *to, size_t setlen);
-sds sdsjoin(char **argv, int argc, char *sep);
-sds sdsjoinsds(sds *argv, int argc, const char *sep, size_t seplen);
+sds sdsjoin(char **argv, int argc, char *sep, Arena* arena);
+sds sdsjoinsds(sds *argv, int argc, const char *sep, size_t seplen, Arena* arena);
 
 /* Low level functions exposed to the user API */
 sds sdsMakeRoomFor(sds s, size_t addlen);
 void sdsIncrLen(sds s, ssize_t incr);
-sds sdsRemoveFreeSpace(sds s);
+/* sds sdsRemoveFreeSpace(sds s); */
 size_t sdsAllocSize(sds s);
 void *sdsAllocPtr(sds s);
 
