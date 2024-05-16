@@ -1,33 +1,5 @@
 /* SDSLib 2.0 -- A C dynamic strings library
  *
- * Copyright (c) 2006-2015, Salvatore Sanfilippo <antirez at gmail dot com>
- * Copyright (c) 2015, Oran Agra
- * Copyright (c) 2015, Redis Labs, Inc
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *   * Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in the
- *     documentation and/or other materials provided with the distribution.
- *   * Neither the name of Redis nor the names of its contributors may be used
- *     to endorse or promote products derived from this software without
- *     specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include <stdio.h>
@@ -37,7 +9,6 @@
 #include <assert.h>
 #include <limits.h>
 #include "sds.h"
-#include "sdsalloc.h"
 
 const char *SDS_NOINIT = "SDS_NOINIT";
 
@@ -241,49 +212,6 @@ sds sdsMakeRoomFor(sds s, size_t addlen) {
     sdssetarena(s, arena);
     return s;
 }
-
-/* Reallocate the sds string so that it has no free space at the end. The
- * contained string remains not altered, but next concatenation operations
- * will require a reallocation.
- *
- * After the call, the passed sds string is no longer valid and all the
- * references must be substituted with the new pointer returned by the call. */
-/* sds sdsRemoveFreeSpace(sds s) { */
-/*     void *sh, *newsh; */
-/*     char type, oldtype = s[-1] & SDS_TYPE_MASK; */
-/*     int hdrlen, oldhdrlen = sdsHdrSize(oldtype); */
-/*     size_t len = sdslen(s); */
-/*     size_t avail = sdsavail(s); */
-/*     sh = (char*)s-oldhdrlen; */
-
-/*     /\* Return ASAP if there is no space left. *\/ */
-/*     if (avail == 0) return s; */
-
-/*     /\* Check what would be the minimum SDS header that is just good enough to */
-/*      * fit this string. *\/ */
-/*     type = sdsReqType(len); */
-/*     hdrlen = sdsHdrSize(type); */
-
-/*     /\* If the type is the same, or at least a large enough type is still */
-/*      * required, we just realloc(), letting the allocator to do the copy */
-/*      * only if really needed. Otherwise if the change is huge, we manually */
-/*      * reallocate the string to use the different header type. *\/ */
-/*     if (oldtype==type || type > SDS_TYPE_8) { */
-/*         newsh = s_realloc(sh, oldhdrlen+len+1); */
-/*         if (newsh == NULL) return NULL; */
-/*         s = (char*)newsh+oldhdrlen; */
-/*     } else { */
-/*         newsh = s_malloc(hdrlen+len+1); */
-/*         if (newsh == NULL) return NULL; */
-/*         memcpy((char*)newsh+hdrlen, s, len+1); */
-/*         s_free(sh); */
-/*         s = (char*)newsh+hdrlen; */
-/*         s[-1] = type; */
-/*         sdssetlen(s, len); */
-/*     } */
-/*     sdssetalloc(s, len); */
-/*     return s; */
-/* } */
 
 /* Return the total size of the allocation of the specified sds string,
  * including:
@@ -535,7 +463,7 @@ sds sdscatvprintf(sds s, const char *fmt, va_list ap) {
     /* We try to start using a static buffer for speed.
      * If not possible we revert to heap allocation. */
     if (buflen > sizeof(staticbuf)) {
-        buf = s_malloc(buflen);
+        buf = malloc(buflen);
         if (buf == NULL) return NULL;
     } else {
         buflen = sizeof(staticbuf);
@@ -548,13 +476,13 @@ sds sdscatvprintf(sds s, const char *fmt, va_list ap) {
         bufstrlen = vsnprintf(buf, buflen, fmt, cpy);
         va_end(cpy);
         if (bufstrlen < 0) {
-            if (buf != staticbuf) s_free(buf);
+            if (buf != staticbuf) free(buf);
             return NULL;
         }
         if (((size_t)bufstrlen) >= buflen) {
-            if (buf != staticbuf) s_free(buf);
+            if (buf != staticbuf) free(buf);
             buflen = ((size_t)bufstrlen) + 1;
-            buf = s_malloc(buflen);
+            buf = malloc(buflen);
             if (buf == NULL) return NULL;
             continue;
         }
@@ -877,14 +805,6 @@ cleanup:
     }
 }
 
-/* Free the result returned by sdssplitlen(), or do nothing if 'tokens' is NULL. */
-void sdsfreesplitres(sds *tokens, int count) {
-    if (!tokens) return;
-    while(count--)
-        sdsfree(tokens[count]);
-    /* s_free(tokens); */
-}
-
 /* Append to the sds string "s" an escaped string representation where
  * all the non-printable characters (tested with isprint()) are turned into
  * escapes in the form "\n\r\a...." or "\x<hex-number>".
@@ -955,9 +875,6 @@ int hex_digit_to_int(char c) {
  * The number of arguments is stored into *argc, and an array
  * of sds is returned.
  *
- * The caller should free the resulting array of sds strings with
- * sdsfreesplitres().
- *
  * Note that sdscatrepr() is able to convert back a string into
  * a quoted string in the same format sdssplitargs() is able to parse.
  *
@@ -966,7 +883,7 @@ int hex_digit_to_int(char c) {
  * quotes or closed quotes followed by non space characters
  * as in: "foo"bar or "foo'
  */
-sds *sdssplitargs(const char *line, int *argc, Arena* arena) {
+sds* sdssplitargs(const char *line, int *argc, Arena* arena) {
     const char *p = line;
     char *current = NULL;
     char **vector = NULL;
@@ -1125,15 +1042,6 @@ sds sdsjoinsds(sds *argv, int argc, const char *sep, size_t seplen, Arena* arena
     }
     return join;
 }
-
-/* Wrappers to the allocators used by SDS. Note that SDS will actually
- * just use the macros defined into sdsalloc.h in order to avoid to pay
- * the overhead of function calls. Here we define these wrappers only for
- * the programs SDS is linked to, if they want to touch the SDS internals
- * even if they use a different allocator. */
-/* void *sds_malloc(size_t size) { return s_malloc(size); } */
-/* void *sds_realloc(void *ptr, size_t size) { return s_realloc(ptr,size); } */
-/* void sds_free(void *ptr) { s_free(ptr); } */
 
 #if defined(SDS_TEST_MAIN)
 #include <stdio.h>

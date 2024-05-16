@@ -1,6 +1,8 @@
 Simple Dynamic Strings
 ===
 
+** Modified by me to use arena allocator instead of malloc **
+
 **Notes about version 2**: this is an updated version of SDS in an attempt
 to finally unify Redis, Disque, Hiredis, and the stand alone SDS versions.
 This version is **NOT* binary compatible** with SDS verison 1, but the API
@@ -710,6 +712,8 @@ struct sdshdr {
 };
 ```
 
+Note: I added an Arena* arena at the beginning of the structures
+
 As you can see, the structure may resemble the one of a conventional string
 library, however the `buf` field of the structure is different since it is
 not a pointer but an array without any length declared, so `buf` actually
@@ -887,26 +891,9 @@ project:
 
 * sds.c
 * sds.h
-* sdsalloc.h
 
 The source code is small and every C99 compiler should deal with
 it without issues.
-
-Using a different allocator for SDS
-===
-
-Internally sds.c uses the allocator defined into `sdsalloc.h`. This header
-file just defines macros for malloc, realloc and free, and by default libc
-`malloc()`, `realloc()` and `free()` are used. Just edit this file in order
-to change the name of the allocation functions.
-
-The program using SDS can call the SDS allocator in order to manipulate
-SDS pointers (usually not needed but sometimes the program may want to
-do advanced things) by using the API exported by SDS in order to call the
-allocator used. This is especially useful when the program linked to SDS
-is using a different allocator compared to what SDS is using.
-
-The API to access the allocator used by SDS is composed of three functions: `sds_malloc()`, `sds_realloc()` and `sds_free()`.
 
 Credits and license
 ===
