@@ -1051,6 +1051,9 @@ sds sdsjoinsds(sds *argv, int argc, const char *sep, size_t seplen, Arena* arena
 #define UNUSED(x) (void)(x)
 int sdsTest(void) {
     {
+
+        printf("Running Tests..\n");
+        
         Arena arena = ar_create(1024*1024*10);
         
         sds x = sdsnew("foo", &arena), y;
