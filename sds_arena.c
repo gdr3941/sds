@@ -8,7 +8,7 @@
 #include <ctype.h>
 #include <assert.h>
 #include <limits.h>
-#include "sds.h"
+#include "sds_arena.h"
 
 const char *SDS_NOINIT = "SDS_NOINIT";
 
