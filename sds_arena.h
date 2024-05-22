@@ -272,7 +272,7 @@ sds sdsjoinsds(sds *argv, int argc, const char *sep, size_t seplen, Arena* arena
 sds sdsMakeRoomFor(sds s, size_t addlen);
 void sdsIncrLen(sds s, ssize_t incr);
 size_t sdsAllocSize(sds s);
-void *sdsAllocPtr(sds s);
+void* sdsAllocPtr(sds s);
 
 #ifdef REDIS_TEST
 int sdsTest(int argc, char *argv[]);

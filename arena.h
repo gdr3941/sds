@@ -33,7 +33,7 @@ Arena ar_create(ptrdiff_t cap); // Create and return new arena
 
 char* ar_alloc(Arena* a, size_t size); // general allocator like malloc
 void* ar_copy(Arena* a, void* src, size_t size); // copy memory into arena
-char* ar_str_copy(Arena* a, char* c); // copy null terminated string into arena
+char* ar_strcpy(Arena* a, char* c); // copy null terminated string into arena
 
 // Implementation
 void* alloc(Arena* a, ptrdiff_t size, ptrdiff_t align, ptrdiff_t count);

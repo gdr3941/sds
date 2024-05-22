@@ -64,7 +64,7 @@ void* ar_copy(Arena* a, void* src, size_t size)
 /*
  * Copy null terminated string (char *) into the arena
  */
-char* ar_str_copy(Arena* a, char* c)
+char* ar_strcopy(Arena* a, char* c)
 {
     return ar_copy(a, c, strlen(c) + 1);
 }
