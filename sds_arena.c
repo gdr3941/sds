@@ -1074,7 +1074,6 @@ int sdsTest(void) {
         test_cond("sdscpy() against an originally longer string",
             sdslen(x) == 1 && memcmp(x,"a\0",2) == 0)
 
-        // THIS ONE IS FAILING
         x = sdscpy(x,"xyzxxxxxxxxxxyyyyyyyyyykkkkkkkkkk");
         test_cond("sdscpy() against an originally shorter string",
             sdslen(x) == 33 &&
